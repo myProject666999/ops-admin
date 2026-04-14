@@ -47,6 +47,17 @@ func (s *server) setupRouter() *gin.Engine {
 		}
 
 		api.GET("/logs", s.requireAuthGin(), s.handleLogsGin)
+
+		monitor := api.Group("/monitor")
+		monitor.Use(s.requireAuthGin())
+		{
+			operlog := monitor.Group("/operlog")
+			{
+				operlog.GET("/page", s.handleOperLogPageGin)
+				operlog.DELETE("/clean", s.handleOperLogCleanGin)
+				operlog.DELETE("/:id", s.handleOperLogDeleteGin)
+			}
+		}
 	}
 
 	r.NoRoute(s.handleStatic)

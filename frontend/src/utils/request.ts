@@ -121,7 +121,7 @@ service.interceptors.request.use(
   (config) => {
     const userStore = useUserStore()
     if (userStore.token) {
-      config.headers['Authorization'] = userStore.token
+      config.headers['Authorization'] = 'Bearer ' + userStore.token
     }
     return config
   },
