@@ -612,27 +612,27 @@ func (s *server) handleLogsGin(c *gin.Context) {
 
 	projectType := strings.TrimSpace(c.Query("project_type"))
 	where := "WHERE 1=1 "
-	countArgs := make([]interface{}, 0, 1)
+	countArgs := make([]interface{}, 0, 2)
 	if projectType != "" {
-		where = ` AND project_type=?`
+		where += ` AND project_type=?`
 		countArgs = append(countArgs, projectType)
 	}
 
 	detail := strings.TrimSpace(c.Query("detail"))
 	if detail != "" {
-		where = ` AND detail LIKE ?`
-		countArgs = append(countArgs, detail)
+		where += ` AND detail LIKE ?`
+		countArgs = append(countArgs, "%"+detail+"%")
 	}
 
 	var total int
-	countQuery := `SELECT COUNT(1) FROM operation_logs` + where
+	countQuery := `SELECT COUNT(1) FROM operation_logs ` + where
 	if err := s.db.QueryRow(countQuery, countArgs...).Scan(&total); err != nil {
 		c.JSON(http.StatusInternalServerError, apiError{Error: "查询日志失败"})
 		return
 	}
 
 	offset := (page - 1) * pageSize
-	query := `SELECT id,COALESCE(user_id,0),COALESCE(username,''),COALESCE(action,''),COALESCE(project_type,''),COALESCE(detail,''),created_at FROM operation_logs` +
+	query := `SELECT id,COALESCE(user_id,0),COALESCE(username,''),COALESCE(action,''),COALESCE(project_type,''),COALESCE(detail,''),created_at FROM operation_logs ` +
 		where + ` ORDER BY id DESC LIMIT ? OFFSET ?`
 	args := make([]interface{}, 0, len(countArgs)+2)
 	args = append(args, countArgs...)

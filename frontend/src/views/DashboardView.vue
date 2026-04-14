@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <n-layout :has-sider="!isMobile" class="page-layout">
     <n-layout-sider v-if="!isMobile" width="220" bordered class="main-sider">
       <div class="sider-title">运维控制台</div>
@@ -251,13 +251,25 @@
           </div>
 
           <n-card v-if="activeView === 'logs'" title="操作日志" size="small">
-            <div class="logs-toolbar">                            
-              <n-form>
+            <div class="logs-toolbar">
+              <n-form inline :model="{ project_type, detail }" label-placement="left">
+                <n-form-item label="项目">
+                  <n-input v-model:value="project_type" placeholder="精确匹配" clearable style="width: 140px" />
+                </n-form-item>
+                <n-form-item label="详情">
+                  <n-input v-model:value="detail" placeholder="模糊搜索" clearable style="width: 180px" />
+                </n-form-item>
                 <n-form-item>
-                  <span>项目</span><n-input v-model:value="project_type" type="text"/>
-                  <span>详情</span><n-input v-model:value="detail" type="text"/>
-                  <n-button size="small" @click="loadLogs(logPage, logPageSize)">查询</n-button>
-                </n-form-item>                                
+                  <n-space>
+                    <n-button type="primary" size="small" @click="logPage = 1; loadLogs(1, logPageSize)">
+                      <template #icon><n-icon><SearchOutline /></n-icon></template>
+                      查询
+                    </n-button>
+                    <n-button size="small" @click="handleResetLogs">
+                      重置
+                    </n-button>
+                  </n-space>
+                </n-form-item>
               </n-form>
             </div>
             <div class="logs-table-wrap">
@@ -353,8 +365,11 @@ import {
   NUploadDragger,
   NDrawer,
   NDrawerContent,
+  NIcon,
+  NSpace,
   useMessage,
 } from 'naive-ui'
+import { SearchOutline } from '@vicons/ionicons5'
 import { getProjectCacheDeadlineKey, getProjectCacheReloginLockKey, useAuthStore } from '@/stores/auth'
 import { apiRequest, isAuthExpiredError } from '@/api/client'
 import { AD_ORG_UNIT_VALUES } from '@/config/ad'
@@ -434,6 +449,8 @@ const logPage = ref(1)
 const logPageSize = ref(20)
 const logTotal = ref(0)
 const logPageSizeOptions = [20, 30, 50, 100, 200]
+const project_type = ref('')
+const detail = ref('')
 const cacheTTLSeconds = ref(600)
 const cacheCountdownSeconds = ref(600)
 let cacheCountdownTimer: number | null = null
@@ -1613,6 +1630,13 @@ async function loadLogs(page = logPage.value, pageSize = logPageSize.value) {
   logPageSize.value = Number(data.page_size || pageSize || 20)
 }
 
+function handleResetLogs() {
+  project_type.value = ''
+  detail.value = ''
+  logPage.value = 1
+  loadLogs(1, logPageSize.value)
+}
+
 async function handleLogPageChange(page: number) {
   logPage.value = page
   await loadLogs(page, logPageSize.value)
@@ -2096,8 +2120,22 @@ onBeforeUnmount(() => {
 
 .logs-toolbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
+  padding: 16px 20px;
+  background: linear-gradient(180deg, #f8fbfe 0%, #f0f6fc 100%);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  min-height: 60px;
+}
+
+.logs-toolbar :deep(.n-form-item) {
+  margin-bottom: 0;
+}
+
+.logs-toolbar :deep(.n-form-item-label) {
+  font-weight: 500;
+  color: #3a5a78;
 }
 
 .project-layout {
