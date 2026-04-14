@@ -251,8 +251,14 @@
           </div>
 
           <n-card v-if="activeView === 'logs'" title="操作日志" size="small">
-            <div class="logs-toolbar">
-              <n-button size="small" @click="loadLogs(logPage, logPageSize)">刷新日志</n-button>
+            <div class="logs-toolbar">                            
+              <n-form>
+                <n-form-item>
+                  <span>项目</span><n-input v-model:value="project_type" type="text"/>
+                  <span>详情</span><n-input v-model:value="detail" type="text"/>
+                  <n-button size="small" @click="loadLogs(logPage, logPageSize)">查询</n-button>
+                </n-form-item>                                
+              </n-form>
             </div>
             <div class="logs-table-wrap">
               <n-table class="logs-table" size="small" striped style="margin-top: 12px">
@@ -1600,7 +1606,7 @@ async function submitAction(f: ActionForm) {
 }
 
 async function loadLogs(page = logPage.value, pageSize = logPageSize.value) {
-  const data = await apiRequest(`/api/logs?page=${page}&page_size=${pageSize}`)
+  const data = await apiRequest(`/api/logs?page=${page}&page_size=${pageSize}&project_type=${project_type.value}&detail=${detail.value}`)
   logs.value = data.items || []
   logTotal.value = Number(data.total || 0)
   logPage.value = Number(data.page || page || 1)
