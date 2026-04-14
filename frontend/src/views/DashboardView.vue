@@ -251,13 +251,25 @@
           </div>
 
           <n-card v-if="activeView === 'logs'" title="操作日志" size="small">
-            <div class="logs-toolbar">                            
-              <n-form>
+            <div class="logs-toolbar">
+              <n-form inline label-width="80px" label-placement="left">
+                <n-form-item label="项目">
+                  <n-input v-model:value="project_type" placeholder="精确匹配项目类型" clearable style="width: 180px" />
+                </n-form-item>
+                <n-form-item label="详情">
+                  <n-input v-model:value="detail" placeholder="模糊搜索详情内容" clearable style="width: 280px" />
+                </n-form-item>
                 <n-form-item>
-                  <span>项目</span><n-input v-model:value="project_type" type="text"/>
-                  <span>详情</span><n-input v-model:value="detail" type="text"/>
-                  <n-button size="small" @click="loadLogs(logPage, logPageSize)">查询</n-button>
-                </n-form-item>                                
+                  <n-button type="primary" @click="loadLogs(1, logPageSize)">
+                    <template #icon>
+                      <n-icon><SearchOutline /></n-icon>
+                    </template>
+                    查询
+                  </n-button>
+                  <n-button style="margin-left: 8px" @click="() => { project_type.value = ''; detail.value = ''; loadLogs(1, logPageSize); }">
+                    重置
+                  </n-button>
+                </n-form-item>
               </n-form>
             </div>
             <div class="logs-table-wrap">
@@ -353,8 +365,10 @@ import {
   NUploadDragger,
   NDrawer,
   NDrawerContent,
+  NIcon,
   useMessage,
 } from 'naive-ui'
+import { SearchOutline } from '@vicons/ionicons5'
 import { getProjectCacheDeadlineKey, getProjectCacheReloginLockKey, useAuthStore } from '@/stores/auth'
 import { apiRequest, isAuthExpiredError } from '@/api/client'
 import { AD_ORG_UNIT_VALUES } from '@/config/ad'
@@ -434,6 +448,8 @@ const logPage = ref(1)
 const logPageSize = ref(20)
 const logTotal = ref(0)
 const logPageSizeOptions = [20, 30, 50, 100, 200]
+const project_type = ref('')
+const detail = ref('')
 const cacheTTLSeconds = ref(600)
 const cacheCountdownSeconds = ref(600)
 let cacheCountdownTimer: number | null = null
@@ -1606,7 +1622,12 @@ async function submitAction(f: ActionForm) {
 }
 
 async function loadLogs(page = logPage.value, pageSize = logPageSize.value) {
-  const data = await apiRequest(`/api/logs?page=${page}&page_size=${pageSize}&project_type=${project_type.value}&detail=${detail.value}`)
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('page_size', String(pageSize))
+  if (project_type.value) params.set('project_type', project_type.value)
+  if (detail.value) params.set('detail', detail.value)
+  const data = await apiRequest(`/api/logs?${params.toString()}`)
   logs.value = data.items || []
   logTotal.value = Number(data.total || 0)
   logPage.value = Number(data.page || page || 1)
@@ -1741,6 +1762,12 @@ function handleWindowClose() {
   }).catch(() => undefined)
 }
 
+watch(activeView, async (newView) => {
+  if (newView === 'logs') {
+    await loadLogs()
+  }
+})
+
 onMounted(async () => {
   windowCloseHandled = false
   document.addEventListener('visibilitychange', handleVisibilityOrFocus)
@@ -1756,6 +1783,9 @@ onMounted(async () => {
   await loadAuthMeta()
   startCacheCountdownTimer()
   loadCredentials().catch((e) => handleRequestError(e))
+  if (activeView.value === 'logs') {
+    await loadLogs()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -2096,8 +2126,24 @@ onBeforeUnmount(() => {
 
 .logs-toolbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  padding: 20px 16px;
+  background: linear-gradient(135deg, #f8fbff 0%, #f0f7ff 100%);
+  border-radius: 10px;
+  border: 1px solid #e1edfa;
+  margin-bottom: 16px;
+  margin-top: 8px;
+}
+
+.logs-toolbar :deep(.n-form-item) {
+  margin-bottom: 0;
+  margin-right: 16px;
+}
+
+.logs-toolbar :deep(.n-form-item-label) {
+  font-weight: 600;
+  color: #2c5277;
 }
 
 .project-layout {
