@@ -1,6 +1,6 @@
 FROM golang:1.26-windowsservercore-ltsc2022 AS builder
 
-WORKDIR /app
+WORKDIR C:/app
 
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
@@ -11,10 +11,10 @@ RUN go build -ldflags '-s -w' -o ops-admin-backend.exe .
 
 FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
 
-WORKDIR /app
+WORKDIR C:/app
 
-COPY --from=builder /app/ops-admin-backend.exe .
-COPY --from=builder /app/data ./data
+COPY --from=builder C:/app/ops-admin-backend.exe .
+COPY --from=builder C:/app/data ./data
 COPY backend/static ./static
 
 ENV ADDR=0.0.0.0:8080
