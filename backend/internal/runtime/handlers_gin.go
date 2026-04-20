@@ -612,16 +612,16 @@ func (s *server) handleLogsGin(c *gin.Context) {
 
 	projectType := strings.TrimSpace(c.Query("project_type"))
 	where := "WHERE 1=1 "
-	countArgs := make([]interface{}, 0, 1)
+	countArgs := make([]interface{}, 0, 2)
 	if projectType != "" {
-		where = ` AND project_type=?`
+		where += ` AND project_type=?`
 		countArgs = append(countArgs, projectType)
 	}
 
 	detail := strings.TrimSpace(c.Query("detail"))
 	if detail != "" {
-		where = ` AND detail LIKE ?`
-		countArgs = append(countArgs, detail)
+		where += ` AND detail LIKE ?`
+		countArgs = append(countArgs, "%"+detail+"%")
 	}
 
 	var total int
