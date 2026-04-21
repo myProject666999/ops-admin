@@ -1,29 +1,55 @@
 <template>
   <div class="page-container">
     <n-card class="page-layout">
-      <div class="search-form">
-        <n-form inline :model="searchForm" label-placement="left">
-          <n-form-item label="模块名称">
-            <n-input v-model:value="searchForm.title" placeholder="请输入模块名称" clearable />
-          </n-form-item>
-          <n-form-item label="操作人员">
-            <n-input v-model:value="searchForm.operName" placeholder="请输入操作人员" clearable />
-          </n-form-item>
-          <n-form-item label="状态">
-            <n-select v-model:value="searchForm.status" placeholder="请选择状态" :options="statusOptions" clearable style="width: 120px" />
-          </n-form-item>
-          <n-form-item>
-            <n-space>
-              <n-button type="primary" @click="handleSearch">
-                <template #icon><n-icon><SearchOutline /></n-icon></template>
-                搜索
-              </n-button>
-              <n-button @click="handleReset">
-                <template #icon><n-icon><RefreshOutline /></n-icon></template>
-                重置
-              </n-button>
-            </n-space>
-          </n-form-item>
+      <div class="search-form-wrapper">
+        <n-form inline :model="searchForm" label-placement="left" class="search-form">
+          <n-grid :cols="4" :x-gap="16" :y-gap="16" responsive="screen">
+            <n-grid-item>
+              <n-form-item label="模块名称" class="compact-form-item">
+                <n-input
+                  v-model:value="searchForm.title"
+                  placeholder="请输入模块名称"
+                  clearable
+                  class="search-input"
+                />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item>
+              <n-form-item label="操作人员" class="compact-form-item">
+                <n-input
+                  v-model:value="searchForm.operName"
+                  placeholder="请输入操作人员"
+                  clearable
+                  class="search-input"
+                />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item>
+              <n-form-item label="状态" class="compact-form-item">
+                <n-select
+                  v-model:value="searchForm.status"
+                  placeholder="请选择状态"
+                  :options="statusOptions"
+                  clearable
+                  class="search-select"
+                />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item>
+              <n-form-item class="compact-form-item button-form-item">
+                <n-space>
+                  <n-button type="primary" @click="handleSearch" class="search-btn">
+                    <template #icon><n-icon><SearchOutline /></n-icon></template>
+                    搜索
+                  </n-button>
+                  <n-button @click="handleReset" class="reset-btn">
+                    <template #icon><n-icon><RefreshOutline /></n-icon></template>
+                    重置
+                  </n-button>
+                </n-space>
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
         </n-form>
       </div>
 
@@ -192,6 +218,75 @@ onMounted(() => loadData())
 </script>
 
 <style scoped>
+.search-form-wrapper {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.search-form {
+  width: 100%;
+}
+
+.compact-form-item {
+  margin-bottom: 0;
+}
+
+.compact-form-item :deep(.n-form-item-label) {
+  font-weight: 500;
+  color: #606266;
+  font-size: 14px;
+}
+
+.search-input,
+.search-select {
+  width: 100%;
+  min-width: 160px;
+}
+
+.search-input :deep(.n-input__input),
+.search-select :deep(.n-base-selection) {
+  border-radius: 8px;
+}
+
+.button-form-item {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+}
+
+.search-btn {
+  border-radius: 8px;
+  padding: 0 20px;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.search-btn:hover {
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.reset-btn {
+  border-radius: 8px;
+  padding: 0 20px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.reset-btn:hover {
+  background-color: #f5f7fa;
+  transform: translateY(-1px);
+}
+
+.table-toolbar {
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
 .code-container {
   max-height: 200px;
   overflow: auto;
@@ -206,4 +301,15 @@ onMounted(() => loadData())
   word-break: break-all;
 }
 
+/* 响应式调整 */
+@media screen and (max-width: 768px) {
+  .search-form-wrapper {
+    padding: 16px;
+  }
+
+  .button-form-item {
+    justify-content: flex-start;
+    margin-top: 8px;
+  }
+}
 </style>

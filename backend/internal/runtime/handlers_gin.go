@@ -662,6 +662,181 @@ func (s *server) handleLogsGin(c *gin.Context) {
 	})
 }
 
+// handleOperLogPageGin 操作日志分页查询（适配前端 SysOperLog 格式）
+func (s *server) handleOperLogPageGin(c *gin.Context) {
+	page := 1
+	pageSize := 10
+
+	if v := strings.TrimSpace(c.Query("page")); v != "" {
+		n, err := strconv.Atoi(v)
+		if err == nil && n > 0 {
+			page = n
+		}
+	}
+	if v := strings.TrimSpace(c.Query("pageSize")); v != "" {
+		n, err := strconv.Atoi(v)
+		if err == nil && n > 0 {
+			pageSize = n
+		}
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+
+	// 搜索参数
+	title := strings.TrimSpace(c.Query("title"))       // 模块名称（项目类型）- 完全匹配
+	operName := strings.TrimSpace(c.Query("operName")) // 操作人员 - 模糊匹配
+	status := strings.TrimSpace(c.Query("status"))     // 状态（0=正常，1=异常）
+
+	where := "WHERE 1=1"
+	countArgs := make([]interface{}, 0)
+
+	// 模块名称（project_type）完全匹配
+	if title != "" {
+		where += " AND project_type = ?"
+		countArgs = append(countArgs, title)
+	}
+
+	// 操作人员（username）模糊匹配
+	if operName != "" {
+		where += " AND username LIKE ?"
+		countArgs = append(countArgs, "%"+operName+"%")
+	}
+
+	// 状态：根据 status 筛选（这里用 detail 字段是否包含"失败"或"异常"来判断）
+	if status != "" {
+		if status == "0" {
+			// 正常：detail 不包含"失败"、"异常"、"错误"
+			where += " AND (detail NOT LIKE '%失败%' AND detail NOT LIKE '%异常%' AND detail NOT LIKE '%错误%')"
+		} else if status == "1" {
+			// 异常：detail 包含"失败"、"异常"或"错误"
+			where += " AND (detail LIKE '%失败%' OR detail LIKE '%异常%' OR detail LIKE '%错误%')"
+		}
+	}
+
+	var total int
+	countQuery := "SELECT COUNT(1) FROM operation_logs " + where
+	if err := s.db.QueryRow(countQuery, countArgs...).Scan(&total); err != nil {
+		c.JSON(http.StatusInternalServerError, apiError{Error: "查询日志失败"})
+		return
+	}
+
+	offset := (page - 1) * pageSize
+	query := "SELECT id,COALESCE(user_id,0),COALESCE(username,''),COALESCE(action,''),COALESCE(project_type,''),COALESCE(detail,''),created_at FROM operation_logs " +
+		where + " ORDER BY id DESC LIMIT ? OFFSET ?"
+	args := make([]interface{}, 0, len(countArgs)+2)
+	args = append(args, countArgs...)
+	args = append(args, pageSize, offset)
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, apiError{Error: "查询日志失败"})
+		return
+	}
+	defer rows.Close()
+
+	type operLogItem struct {
+		ID            int64  `json:"id"`
+		Title         string `json:"title"`          // 模块名称（对应 project_type）
+		BusinessType  int    `json:"businessType"`   // 业务类型（根据 action 映射）
+		Method        string `json:"method"`         // 方法名称
+		RequestMethod string `json:"requestMethod"`  // 请求方式
+		OperName      string `json:"operName"`       // 操作人员
+		OperUrl       string `json:"operUrl"`        // 请求地址
+		OperIp        string `json:"operIp"`         // IP地址
+		OperParam     string `json:"operParam"`      // 请求参数
+		JsonResult    string `json:"jsonResult"`     // 返回参数
+		Status        int    `json:"status"`         // 操作状态（0=正常，1=异常）
+		ErrorMsg      string `json:"errorMsg"`       // 错误信息
+		OperTime      string `json:"operTime"`       // 操作时间
+		CostTime      int    `json:"costTime"`       // 耗时
+	}
+
+	items := make([]operLogItem, 0)
+	for rows.Next() {
+		var id int64
+		var userID int64
+		var username, action, projectType, detailStr, createdAt string
+		if err = rows.Scan(&id, &userID, &username, &action, &projectType, &detailStr, &createdAt); err != nil {
+			c.JSON(http.StatusInternalServerError, apiError{Error: "读取日志失败"})
+			return
+		}
+		detailStr = normalizeGarbledText(detailStr)
+
+		// 判断状态（根据 detail 是否包含错误信息）
+		statusCode := 0
+		errorMsg := ""
+		if strings.Contains(detailStr, "失败") || strings.Contains(detailStr, "异常") || strings.Contains(detailStr, "错误") {
+			statusCode = 1
+			errorMsg = detailStr
+		}
+
+		// 映射业务类型
+		businessType := 0 // 其他
+		switch action {
+		case "create", "add", "insert":
+			businessType = 1 // 新增
+		case "update", "edit", "modify":
+			businessType = 2 // 修改
+		case "delete", "remove":
+			businessType = 3 // 删除
+		case "query", "search", "list", "page":
+			businessType = 4 // 查询
+		case "export":
+			businessType = 5 // 导出
+		}
+
+		items = append(items, operLogItem{
+			ID:            id,
+			Title:         projectType,
+			BusinessType:  businessType,
+			Method:        action,
+			RequestMethod: "POST",
+			OperName:      username,
+			OperUrl:       "/api/" + action,
+			OperIp:        "",
+			OperParam:     "",
+			JsonResult:    "",
+			Status:        statusCode,
+			ErrorMsg:      errorMsg,
+			OperTime:      createdAt,
+			CostTime:      0,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"list":     items,
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+	})
+}
+
+// handleOperLogCleanGin 清空操作日志
+func (s *server) handleOperLogCleanGin(c *gin.Context) {
+	if _, err := s.db.Exec("DELETE FROM operation_logs"); err != nil {
+		c.JSON(http.StatusInternalServerError, apiError{Error: "清空日志失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "清空成功"})
+}
+
+// handleOperLogDeleteGin 删除单条操作日志
+func (s *server) handleOperLogDeleteGin(c *gin.Context) {
+	idStr := strings.TrimSpace(c.Param("id"))
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, apiError{Error: "无效的日志ID"})
+		return
+	}
+
+	if _, err := s.db.Exec("DELETE FROM operation_logs WHERE id = ?", id); err != nil {
+		c.JSON(http.StatusInternalServerError, apiError{Error: "删除日志失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "删除成功"})
+}
+
 func (s *server) getProjectCredential(userID int64, projectType string) (string, string, error) {
 	var account, password string
 	err := s.db.QueryRow(`SELECT account,password FROM project_credentials WHERE user_id=? AND project_type=?`, userID, projectType).Scan(&account, &password)
